@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>l3kimroot — Vulnerabilidades encontradas en entornos reales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E14;
+    --bg-alt: #0D1219;
+    --panel: #10151D;
+    --panel-border: #202832;
+    --text: #E4E9F0;
+    --text-muted: #6B7686;
+    --text-dim: #45505E;
+    --critical: #FF2D6E;
+    --high: #FF8A00;
+    --medium: #FFD400;
+    --cyan: #FF3B3B;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  a{ color: inherit; text-decoration: none; }
+
+  ::selection{ background: var(--cyan); color: #041014; }
+
+  /* subtle scanline grid on the whole page */
+  body::before{
+    content:"";
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,59,59,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,59,59,0.035) 1px, transparent 1px);
+    background-size: 42px 42px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+  /* ---------- NAV ---------- */
+  nav{
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,14,20,0.86);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--panel-border);
+  }
+  nav .wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    height: 64px;
+  }
+  .logo{
+    font-family: var(--font-mono);
+    font-size: 15px;
+    color: var(--cyan);
+    white-space: nowrap;
+  }
+  .logo span{ color: var(--text-dim); }
+  .navlinks{ display:flex; gap: 28px; font-family: var(--font-mono); font-size: 13px; }
+  .navlinks a{ color: var(--text-muted); transition: color .15s; position: relative; }
+  .navlinks a:hover{ color: var(--text); }
+  .navlinks a::after{
+    content:""; position:absolute; left:0; bottom:-6px; height:1px; width:0;
+    background: var(--cyan); transition: width .18s;
+  }
+  .navlinks a:hover::after{ width: 100%; }
+
+  .lang-switch{
+    display:flex; gap: 2px; font-family: var(--font-mono); font-size: 12px;
+    border: 1px solid var(--panel-border);
+  }
+  .lang-switch button{
+    background: transparent; border: none; color: var(--text-dim);
+    padding: 6px 10px; cursor: pointer; font-family: var(--font-mono); font-size: 12px;
+    transition: color .15s, background .15s;
+  }
+  .lang-switch button:hover{ color: var(--text); }
+  .lang-switch button.active{ color: var(--bg); background: var(--cyan); }
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    padding: 120px 0 100px;
+    position: relative;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .hero-tag{
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 22px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hero-tag .dot{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--high);
+    box-shadow: 0 0 8px var(--high);
+    animation: blink 1.6s infinite;
+  }
+  @keyframes blink{ 0%,100%{ opacity:1;} 50%{ opacity:.25;} }
+
+  h1.hero-title{
+    font-size: clamp(2.4rem, 5.5vw, 4.4rem);
+    font-weight: 700;
+    line-height: 1.05;
+    max-width: 15ch;
+    letter-spacing: -0.01em;
+  }
+  h1.hero-title .type-cursor{
+    display:inline-block; width: .5ch; background: var(--cyan);
+    animation: blink 1s steps(1) infinite;
+    margin-left: 4px;
+  }
+
+  .hero-sub{
+    margin-top: 26px;
+    max-width: 56ch;
+    color: var(--text-muted);
+    font-size: 1.05rem;
+  }
+
+  .hero-links{
+    margin-top: 40px;
+    display:flex; gap: 14px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 13px;
+  }
+  .hero-links a{
+    border: 1px solid var(--panel-border);
+    padding: 10px 18px;
+    color: var(--text);
+    transition: border-color .15s, color .15s;
+  }
+  .hero-links a.primary{
+    border-color: var(--cyan);
+    color: var(--cyan);
+  }
+  .hero-links a:hover{ border-color: var(--text); }
+
+  .hero-stats{
+    margin-top: 64px;
+    display: grid; grid-template-columns: repeat(4, auto);
+    gap: 48px;
+    max-width: 640px;
+  }
+  .stat-num{ font-family: var(--font-mono); font-size: 1.7rem; color: var(--cyan); }
+  .stat-label{ font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ---------- SECTION SHARED ---------- */
+  section{ padding: 90px 0; border-bottom: 1px solid var(--panel-border); }
+  .section-head{
+    display:flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 48px; flex-wrap: wrap; gap: 12px;
+  }
+  .section-head h2{
+    font-size: 1.7rem; font-weight: 600;
+  }
+  .section-head .count{
+    font-family: var(--font-mono); font-size: 13px; color: var(--text-dim);
+  }
+
+  /* ---------- FINDINGS (terminal-window cards) ---------- */
+  .finding{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    margin-bottom: 18px;
+  }
+  .finding-bar{
+    display:flex; align-items:center; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--panel-border);
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);
+  }
+  .sev-dot{ width: 9px; height: 9px; border-radius: 50%; }
+  .sev-dot.critical{ background: var(--critical); box-shadow: 0 0 6px var(--critical); }
+  .sev-dot.high{ background: var(--high); box-shadow: 0 0 6px var(--high); }
+  .sev-dot.medium{ background: var(--medium); box-shadow: 0 0 6px var(--medium); }
+  .finding-body{
+    padding: 22px 22px 24px;
+    border-left: 3px solid transparent;
+  }
+  .finding[data-sev="critical"] .finding-body{ border-left-color: var(--critical); }
+  .finding[data-sev="high"] .finding-body{ border-left-color: var(--high); }
+  .finding[data-sev="medium"] .finding-body{ border-left-color: var(--medium); }
+
+  .finding-top{ display:flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+  .finding-title{ font-size: 1.15rem; font-weight: 600; }
+  .finding-meta{ font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); text-align: right; }
+  .finding-desc{ color: var(--text-muted); font-size: .95rem; max-width: 72ch; }
+  .finding-tags{ margin-top: 16px; display:flex; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; }
+  .finding-tags span{ border: 1px solid var(--panel-border); color: var(--text-muted); padding: 4px 9px; }
+
+  /* ---------- HALL OF FAME ---------- */
+  .fame-grid{
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1px; background: var(--panel-border);
+    border: 1px solid var(--panel-border);
+  }
+  .fame-item{
+    background: var(--panel); padding: 28px 22px;
+  }
+  .fame-platform{ font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); }
+  .fame-num{ font-size: 2rem; font-weight: 700; margin-top: 10px; color: var(--text); }
+  .fame-num small{ font-size: .95rem; color: var(--text-muted); font-weight: 400; }
+
+  /* ---------- LABS ---------- */
+  .labs-grid{
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .lab-card{
+    border: 1px solid var(--panel-border);
+    padding: 22px;
+    background: var(--bg-alt);
+  }
+  .lab-name{ font-weight: 600; font-size: 1.05rem; }
+  .lab-tag{ font-family: var(--font-mono); font-size: 11px; color: var(--cyan); margin-top: 6px; display:block; }
+  .lab-desc{ color: var(--text-muted); font-size: .9rem; margin-top: 12px; }
+
+  /* ---------- METHOD / SKILLS ---------- */
+  .skill-tags{ display:flex; flex-wrap: wrap; gap: 10px; }
+  .skill-tags span{
+    font-family: var(--font-mono); font-size: 12.5px;
+    border: 1px solid var(--panel-border);
+    padding: 8px 14px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- WRITEUPS CTA ---------- */
+  .cta-box{
+    border: 1px solid var(--cyan);
+    padding: 40px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;
+    background: linear-gradient(180deg, rgba(255,59,59,0.05), transparent);
+  }
+  .cta-box h3{ font-size: 1.3rem; }
+  .cta-box p{ color: var(--text-muted); margin-top: 8px; max-width: 50ch; font-size: .92rem; }
+  .cta-box a{
+    font-family: var(--font-mono); font-size: 13px;
+    border: 1px solid var(--cyan); color: var(--cyan);
+    padding: 12px 20px; white-space: nowrap;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{ padding: 50px 0 70px; }
+  footer .wrap{ display:flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+  footer .foot-left{ font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); }
+  footer .foot-links{ display:flex; gap: 20px; font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+  footer .foot-links a:hover{ color: var(--cyan); }
+
+  @media (max-width: 720px){
+    .navlinks{ display:none; }
+    .hero-stats{ grid-template-columns: repeat(2, auto); }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">l3kimroot<span>@portfolio:~$</span></div>
+    <div class="navlinks">
+      <a href="#hallazgos" data-i18n="nav_hallazgos">Hallazgos</a>
+      <a href="#conocimientos" data-i18n="nav_conocimientos">Conocimientos</a>
+      <a href="#formacion" data-i18n="nav_formacion">Formación</a>
+      <a href="#writeups" data-i18n="nav_writeups">Write-ups</a>
+    </div>
+    <div class="lang-switch">
+      <button type="button" data-lang="es">ES</button>
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="eu">EU</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-tag"><span class="dot"></span> <span data-i18n="hero_tag">sesión activa — recon en curso</span></div>
+    <h1 class="hero-title"><span data-i18n="hero_title">Vulnerabilidades encontradas en entornos reales</span><span class="type-cursor">&nbsp;</span></h1>
+    <p class="hero-sub" data-i18n="hero_sub"><strong>l3kimroot</strong>, estudiante de seguridad ofensiva en Pamplona. Vulnerabilidades encontradas en entornos reales, además de laboratorios de hacking como práctica de red team.</p>
+    <div class="hero-links">
+      <a class="primary" href="#hallazgos" data-i18n="hero_link_hallazgos">Ver hallazgos</a>
+      <a href="#writeups" data-i18n="hero_link_writeups">Repo de write-ups</a>
+    </div>
+  </div>
+</header>
+
+<section id="hallazgos">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 data-i18n="section_hallazgos_title">Hallazgos destacados</h2>
+      <div class="count" data-i18n="section_hallazgos_count">2 hallazgos</div>
+    </div>
+
+    <div class="finding" data-sev="critical">
+      <div class="finding-bar"><span class="sev-dot critical"></span> critical.log — oauth-dcr.md</div>
+      <div class="finding-body">
+        <div class="finding-top">
+          <div class="finding-title" data-i18n="finding1_title">OAuth Dynamic Client Registration sin autenticar → Account Takeover</div>
+          <div class="finding-meta" data-i18n="found_by">encontrado por l3kimroot</div>
+        </div>
+        <p class="finding-desc" data-i18n="finding1_desc">Registro de cliente OAuth malicioso sin autenticación permite capturar el código de autorización una vez la víctima aprueba el consentimiento, obteniendo tokens con PII y rol de usuario.</p>
+        <div class="finding-tags"><span>OAuth</span><span>Account Takeover</span><span>Critical</span><span data-i18n="finding1_status">pendiente de validación</span></div>
+      </div>
+    </div>
+
+    <div class="finding" data-sev="critical">
+      <div class="finding-bar"><span class="sev-dot critical"></span> critical.log — stored-xss-cookie.md</div>
+      <div class="finding-body">
+        <div class="finding-top">
+          <div class="finding-title" data-i18n="finding2_title">Stored XSS con ejecución automática → Account Takeover</div>
+          <div class="finding-meta" data-i18n="found_by">encontrado por l3kimroot</div>
+        </div>
+        <p class="finding-desc" data-i18n="finding2_desc">Atributo de imagen sin escapar en un parser de contenido permite inyectar un manejador de evento que se ejecuta sin clic; la cookie de sesión no tiene HttpOnly, por lo que el mismo payload filtra el JWT completo y permite tomar la cuenta.</p>
+        <div class="finding-tags"><span>Stored XSS</span><span>Account Takeover</span><span>Critical</span><span data-i18n="finding2_status">reportado</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="conocimientos">
+  <div class="wrap">
+    <div class="section-head"><h2 data-i18n="section_conocimientos_title">Conocimientos</h2></div>
+    <div class="skill-tags">
+      <span data-i18n="skill_redes">redes TCP/IP y modelo OSI</span><span>Linux</span><span data-i18n="skill_hackingweb">hacking web</span>
+      <span>Burp Suite</span><span data-i18n="skill_recon">Reconocimiento</span>
+      <span data-i18n="skill_python">automatización en Python</span><span>Bash</span><span>PowerShell</span>
+      <span>pentesting</span><span data-i18n="skill_hackingetico">hacking ético</span><span>OSINT</span>
+    </div>
+  </div>
+</section>
+
+<section id="formacion">
+  <div class="wrap">
+    <div class="section-head"><h2 data-i18n="section_formacion_title">Formación</h2></div>
+    <div class="skill-tags">
+      <span>Sistemas Microinformáticos y Redes (SMR)</span><span data-i18n="formacion_asir">ASIR — estudiante actual</span>
+    </div>
+  </div>
+</section>
+
+<section id="writeups" style="border-bottom:none;">
+  <div class="wrap">
+    <div class="cta-box">
+      <div>
+        <h3 data-i18n="writeups_title">Write-ups</h3>
+        <p data-i18n="writeups_desc">Explicaciones de vulnerabilidades encontradas en entornos reales, organizadas por tipo de vulnerabilidad.</p>
+      </div>
+      <a href="#" data-i18n="writeups_cta">Ver write-ups</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-left" data-i18n="footer_location">l3kimroot — Iruñea / Pamplona</div>
+    <div class="foot-links">
+      <a href="#">GitHub</a><a href="mailto:08molabe@gmail.com" data-i18n="footer_contact">Contacto: 08molabe@gmail.com</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var t = {
+    es: {
+      nav_hallazgos: "Hallazgos", nav_conocimientos: "Conocimientos", nav_formacion: "Formación", nav_writeups: "Write-ups",
+      hero_tag: "sesión activa — recon en curso",
+      hero_title: "Vulnerabilidades encontradas en entornos reales",
+      hero_sub: '<strong>l3kimroot</strong>, estudiante de seguridad ofensiva en Pamplona. Vulnerabilidades encontradas en entornos reales, además de laboratorios de hacking como práctica de red team.',
+      hero_link_hallazgos: "Ver hallazgos", hero_link_writeups: "Repo de write-ups",
+      section_hallazgos_title: "Hallazgos destacados", section_hallazgos_count: "2 hallazgos",
+      finding1_title: "OAuth Dynamic Client Registration sin autenticar → Account Takeover",
+      finding1_desc: "Registro de cliente OAuth malicioso sin autenticación permite capturar el código de autorización una vez la víctima aprueba el consentimiento, obteniendo tokens con PII y rol de usuario.",
+      finding1_status: "pendiente de validación",
+      finding2_title: "Stored XSS con ejecución automática → Account Takeover",
+      finding2_desc: "Atributo de imagen sin escapar en un parser de contenido permite inyectar un manejador de evento que se ejecuta sin clic; la cookie de sesión no tiene HttpOnly, por lo que el mismo payload filtra el JWT completo y permite tomar la cuenta.",
+      finding2_status: "reportado",
+      found_by: "encontrado por l3kimroot",
+      section_conocimientos_title: "Conocimientos",
+      skill_redes: "redes TCP/IP y modelo OSI", skill_hackingweb: "hacking web", skill_recon: "Reconocimiento", skill_python: "automatización en Python", skill_hackingetico: "hacking ético",
+      section_formacion_title: "Formación", formacion_asir: "ASIR — estudiante actual",
+      writeups_title: "Write-ups", writeups_desc: "Explicaciones de vulnerabilidades encontradas en entornos reales, organizadas por tipo de vulnerabilidad.", writeups_cta: "Ver write-ups",
+      footer_location: "l3kimroot — Iruñea / Pamplona", footer_contact: "Contacto: 08molabe@gmail.com"
+    },
+    en: {
+      nav_hallazgos: "Findings", nav_conocimientos: "Skills", nav_formacion: "Education", nav_writeups: "Write-ups",
+      hero_tag: "active session — recon in progress",
+      hero_title: "Vulnerabilities found in real-world environments",
+      hero_sub: '<strong>l3kimroot</strong>, offensive security student in Pamplona. Vulnerabilities found in real-world environments, plus hacking labs as red team practice.',
+      hero_link_hallazgos: "View findings", hero_link_writeups: "Write-ups repo",
+      section_hallazgos_title: "Featured findings", section_hallazgos_count: "2 findings",
+      finding1_title: "Unauthenticated OAuth Dynamic Client Registration → Account Takeover",
+      finding1_desc: "A malicious OAuth client registration with no authentication allows capturing the authorization code once the victim approves consent, obtaining tokens with PII and the user's role.",
+      finding1_status: "pending validation",
+      finding2_title: "Stored XSS with automatic execution → Account Takeover",
+      finding2_desc: "An unescaped image attribute in a content parser allows injecting an event handler that fires with no click; the session cookie lacks HttpOnly, so the same payload leaks the full JWT and allows taking over the account.",
+      finding2_status: "reported",
+      found_by: "found by l3kimroot",
+      section_conocimientos_title: "Skills",
+      skill_redes: "TCP/IP networking & OSI model", skill_hackingweb: "web hacking", skill_recon: "Reconnaissance", skill_python: "Python automation", skill_hackingetico: "ethical hacking",
+      section_formacion_title: "Education", formacion_asir: "ASIR — currently studying",
+      writeups_title: "Write-ups", writeups_desc: "Write-ups on vulnerabilities found in real-world environments, organized by vulnerability type.", writeups_cta: "View write-ups",
+      footer_location: "l3kimroot — Iruñea / Pamplona", footer_contact: "Contact: 08molabe@gmail.com"
+    },
+    eu: {
+      nav_hallazgos: "Aurkikuntzak", nav_conocimientos: "Ezagutzak", nav_formacion: "Prestakuntza", nav_writeups: "Write-ups",
+      hero_tag: "saioa aktibo — recon abian",
+      hero_title: "Benetako ingurune errealetan aurkitutako ahultasunak",
+      hero_sub: '<strong>l3kimroot</strong>, segurtasun ofentsiboko ikaslea, Iruñean. Benetako ingurune errealetan aurkitutako ahultasunak, gehi hacking laborategiak red team praktika gisa.',
+      hero_link_hallazgos: "Ikusi aurkikuntzak", hero_link_writeups: "Write-ups biltegia",
+      section_hallazgos_title: "Aurkikuntza nabarmenak", section_hallazgos_count: "2 aurkikuntza",
+      finding1_title: "Autentifikatu gabeko OAuth Dynamic Client Registration → Account Takeover",
+      finding1_desc: "Autentifikaziorik gabeko OAuth bezero maltzur baten erregistroak baimen-kodea harrapatzea ahalbidetzen du biktimak onarpena eman ondoren, PII eta erabiltzailearen rola dituzten tokenak lortuz.",
+      finding1_status: "balioztatzeke",
+      finding2_title: "Exekuzio automatikoko Stored XSS → Account Takeover",
+      finding2_desc: "Edukien parser batean irudi-atributu bat ihes egin gabe uzteak klikrik gabe exekutatzen den gertaera-kudeatzaile bat txertatzea ahalbidetzen du; saio-cookieak ez du HttpOnly-rik, beraz payload berak JWT osoa filtratzen du eta kontua hartzea ahalbidetzen du.",
+      finding2_status: "jakinarazita",
+      found_by: "l3kimroot-ek aurkitua",
+      section_conocimientos_title: "Ezagutzak",
+      skill_redes: "TCP/IP sareak eta OSI eredua", skill_hackingweb: "web hacking-a", skill_recon: "Ezagutza-lana", skill_python: "Python automatizazioa", skill_hackingetico: "hacking etikoa",
+      section_formacion_title: "Prestakuntza", formacion_asir: "ASIR — gaur egun ikasten",
+      writeups_title: "Write-ups", writeups_desc: "Benetako ingurune errealetan aurkitutako ahultasunei buruzko write-upak, ahultasun motaren arabera antolatuta.", writeups_cta: "Ikusi write-ups",
+      footer_location: "l3kimroot — Iruñea / Pamplona", footer_contact: "Harremanetarako: 08molabe@gmail.com"
+    }
+  };
+
+  function setLang(lang){
+    if(!t[lang]) lang = 'es';
+    document.documentElement.setAttribute('lang', lang);
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var key = el.getAttribute('data-i18n');
+      if(t[lang][key] !== undefined){ el.innerHTML = t[lang][key]; }
+    });
+    document.querySelectorAll('.lang-switch button').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+    });
+    try{ localStorage.setItem('portfolio-lang', lang); }catch(e){}
+  }
+
+  document.querySelectorAll('.lang-switch button').forEach(function(btn){
+    btn.addEventListener('click', function(){ setLang(btn.getAttribute('data-lang')); });
+  });
+
+  var saved = 'es';
+  try{ saved = localStorage.getItem('portfolio-lang') || 'es'; }catch(e){}
+  setLang(saved);
+})();
+</script>
+
+</body>
+</html>
